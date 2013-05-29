@@ -1,0 +1,182 @@
+#+TITLE: TP Waf
+#+STYLE: <link rel="stylesheet" type="text/css" href="org.css" />
+
+
+* Introduction
+
+Waf est un outil de construction de logiciel, dans la lignée des
+autotools (configure, make), cmake, scons. Il permet de gérer la
+configuration, la compilation et l'installation d'un logiciel avec une
+syntaxe intuitive (en python), et des fonctionnalités (modules)
+permettant d'écrire les scripts de construction très rapidement, quel
+que soit le langage utilisé. 
+
+Cette structure modulaire permet aux utilisateurs d'en étendre les
+fonctionnalités selon leur besoin, et ainsi de s'adapter à la
+complexité croissante des processus de construction (multiplicité des
+langages, des architectures, interfaçage , etc). 
+
+Waf est performant, portable, léger, et directement distribué avec
+l'application qu'il construit, il ne requiert donc aucune installation
+préalable. 
+
+Ce TP a pour objectif de vous guider dans : 
+
++ l'écriture d'un simple script de construction incluant la configuration (mise en place d'options), la compilation (utilisant les fonctionnalités de compilation C/C++, Fortran et python) et l'installation.
++ l'utilisation de waf dans le cadre d'une application (performances et gestion des dépendances)
++ l'écriture d'extensions
+
+
+* Concepts de base
+
+** Le binaire waf
+
+Waf est distribué avec l'application qu'il construit sous la forme
+d'un binaire nommé =waf= embarquant l'ensemble des fonctionnalités de
+base de l'outil. \\
+Les directives propres au logiciel qu'il construit sont écrites dans
+un script nommé =wscript=. \\
+L'ensemble des commandes du binaire sont documentées et accessibles à
+l'utilisateur: 
+
+#+BEGIN_SRC shell
+./waf --help
+#+END_SRC
+
+La construction classique d'un outil passe par : 
+
+#+BEGIN_SRC shell
+./waf configure       (ref:1)
+./waf install         (ref:2)
+#+END_SRC
+
+[[(1)]] configuration de l'installation \\
+[[(2)]] construction et installation de l'outil
+
+Ces commandes correspondent à des fonctions Python, qui peuvent être (re)définies au sein du =wscript=
+
+#+BEGIN_SRC Python
+def version():
+    print "1.1"
+#+END_SRC
+
+#+BEGIN_SRC python
+def configure(ctx):
+
+#+END_SRC
+
+** L'environnement de construction
+
+Les fichiers de construction générés par =waf= sont enregistrés dans
+le répertoire =.build=. Le script =wscript= est situé à la racine
+du projet.
+
+#+BEGIN_SRC shell
+tree
+#+END_SRC
+
+Ces fichiers sont effacés automatiquement à l'appel de la commande =distclean=
+
+#+BEGIN_SRC shell
+./waf distclean
+tree
+#+END_SRC
+
+Cette configuration par défaut peut être modifiée, en tête du =wscript= 
+
+#+BEGIN_SRC Python
+top = './'
+out = './build'
+#+END_SRC
+
+Il est possible d'utiliser plusieurs fichiers =wscript=. L'appel à la
+fonction =recurse= permet de les appeler. 
+
+#+BEGIN_SRC Python
+def configure(ctx):
+    ctx.recurse('src')
+#+END_SRC
+
+** Persistence des données
+
+Les informations récupérées lors de la phase de configuration sont
+stockées dans les objets =Context= , et sur disque dans un fichier de cache:
+
+#+BEGIN_SRC shell
+more build/cache/_cache.py
+#+END_SRC
+
+** Ajouter de nouvelles options
+
+#+BEGIN_SRC Python
+def options(ctx):
+        ctx.add_option('--myoption', action='store', default=False, help='this is my option')
+
+def configure(ctx):
+	ctx.ENV.MYOPT = ctx.options.myoption
+
+def build(bld):
+        print(bld.env.MYOPT)
+#+END_SRC
+
+** Outils de configuration
+
+#+BEGIN_SRC Python   
+def configure(ctx):
+    ctx.find_program('touch', var='TOUCH')
+    ctx.check_waf_version(mini='1.6.11')
+    ctx.find_file('fstab', ['/opt', '/etc'])  
+
+def build(ctx):
+    print ctx.ENV.TOUCH
+#+END_SRC
+
+** Manipulation des objets =Context=
+
+ctx.env.append_value('CFLAGS', ['-O2'])
+
+write decorator
+@conf
+def get_version ()
+ctx.get_version()
+ 
+** Construction
+
+ctx (rule="${SRC} ${TGT}", source="", target="")
+
+input / output -> dependencies
+
+if install
+
+
+
+
+
+
+#+BEGIN_SRC Python
+APPNAME
+VERSION
+#+END_SRC
+
+
+
+* Exemple en C/C++
+
+static
+dynamic
+use
+
+* Exemple en Python
+
+* Exemple en Fortran
+
+* Projets
+
+gestion des taches et performance 
+genbench
+
+* Extensions
+
+** extension existante à décortiquer
+** extension simple à écrire avec chainage
+   
