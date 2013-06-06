@@ -42,6 +42,8 @@
   a:hover {text-decoration: underline; color: #a34d32}
 
   .todo {color: #990000;}
+  .verse {color: #990000;}
+  .quote {color: #990000;}
   .done {color: #006666;}
   .timestamp-kwd {color: #444;}
   .tag {color: #DDD; font-size: 70%; font-weight: 500;}

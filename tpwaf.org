@@ -22,8 +22,12 @@ préalable.
 
 Ce TP a pour objectif de vous guider dans : 
 
-+ l'écriture d'un simple script de construction incluant la configuration (mise en place d'options), la compilation (utilisant les fonctionnalités de compilation C/C++, Fortran et python) et l'installation.
-+ l'utilisation de waf dans le cadre d'une application (performances et gestion des dépendances)
++ l'écriture d'un simple script de construction incluant la
+  configuration (mise en place d'options), la compilation (utilisant
+  les fonctionnalités de compilation C/C++, Fortran et python) et
+  l'installation.
++ l'utilisation de waf dans le cadre d'une application (performances
+  et gestion des dépendances)
 + l'écriture d'extensions
 
 
@@ -43,11 +47,16 @@ l'utilisateur:
 ./waf --help
 #+END_SRC
 
+#+BEGIN_VERSE
+Ouvrir une fenêtre de commande, extraire l'archive jointe au TP et définir un alias pour l'ensemble du TP =alias waf=$PWD/waf=. 
+Exécuter la commande ci-dessus pour obtenir la liste des commandes.
+#+END_VERSE
+
 La construction classique d'un outil passe par : 
 
 #+BEGIN_SRC shell
-./waf configure       (ref:1)
-./waf install         (ref:2)
+waf configure       (ref:1)
+waf install         (ref:2)
 #+END_SRC
 
 [[(1)]] configuration de l'installation \\
@@ -57,13 +66,20 @@ Ces commandes correspondent à des fonctions Python, qui peuvent être (re)défi
 
 #+BEGIN_SRC Python
 def version():
-    print "1.1"
+    return 1.1
 #+END_SRC
 
 #+BEGIN_SRC python
 def configure(ctx):
-
+    v = version()
+    print 'version %f'%v
 #+END_SRC
+    
+#+BEGIN_VERSE
+Ouvrir le fichier =1/wscript= et ajouter ces lignes de code à la suite du header. 
+Vérifier par la commande =waf configure= que vos modifications ont bien été intégrées.  
+#+END_VERSE
+
 
 ** L'environnement de construction
 
@@ -78,9 +94,14 @@ tree
 Ces fichiers sont effacés automatiquement à l'appel de la commande =distclean=
 
 #+BEGIN_SRC shell
-./waf distclean
+waf distclean
 tree
 #+END_SRC
+
+#+BEGIN_VERSE
+Exécuter ces commandes dans l'order pour afficher le contenu du répertoire =build=. 
+#+END_VERSE
+
 
 Cette configuration par défaut peut être modifiée, en tête du =wscript= 
 
@@ -97,16 +118,37 @@ def configure(ctx):
     ctx.recurse('src')
 #+END_SRC
 
+#+BEGIN_VERSE
+Observer le contenu du fichier =1/src/wscript=
+Modifier la fonction =configure= de =1/wscript= pour exécuter ce nouveau script. 
+#+END_VERSE
+
 ** Persistence des données
 
 Les informations récupérées lors de la phase de configuration sont
 stockées dans les objets =Context= , et sur disque dans un fichier de cache:
 
-#+BEGIN_SRC shell
-more build/cache/_cache.py
+#+BEGIN_SRC Python
+def configure(ctx):
+    ctx.env.FOO = 'bar'
 #+END_SRC
 
+#+BEGIN_SRC shell
+more build/c4che/_cache.py
+#+END_SRC
+
+#+BEGIN_VERSE
+Ajouter la définition d'une nouvelle variable d'environnement à la fonction =configure= de =1/wscript=. 
+Vérifier sa présence dans le fichier de cache. 
+#+END_VERSE
+
+
 ** Ajouter de nouvelles options
+
+L'ajout de nouvelles options de configuration est réalisé via la
+définition d'une fonction nommées =options= qui prend un object
+=Context= comme unique argument. Le mécanisme utilisé est celui du
+paquet Python de référence =optparse=. 
 
 #+BEGIN_SRC Python
 def options(ctx):
@@ -119,45 +161,123 @@ def build(bld):
         print(bld.env.MYOPT)
 #+END_SRC
 
+#+BEGIN_VERSE
+Ajouter la définition d'une fonction =options= à =1/wscript=. 
+Exécuter la configuration puis la construction afin de vérifier la bonne propagation de votre option. 
+#+END_VERSE
+
 ** Outils de configuration
+
+La librairie =waf= dispose de quelques outils prêt à l'emploi
+permettant d'analyser l'environnement de construction. En voici
+quelques exemples:
 
 #+BEGIN_SRC Python   
 def configure(ctx):
     ctx.find_program('touch', var='TOUCH')
     ctx.check_waf_version(mini='1.6.11')
-    ctx.find_file('fstab', ['/opt', '/etc'])  
+    try:
+       ctx.find_file('fstab', ['/opt', '/etc'])  
+    except ctx.errors.ConfigurationError:
+       self.to_log('fstab was not found (ignoring)'
 
 def build(ctx):
     print ctx.ENV.TOUCH
 #+END_SRC
 
+#+BEGIN_VERSE
+Compléter le script avec ces instructions. 
+Exécuter la configuration puis la construction afin de vérifier la compatibilité de votre environnement. 
+#+END_VERSE
+
 ** Manipulation des objets =Context=
 
+Comme mentionné précedemment, les variables d'environnement sont
+stockées dans l'attribut =ctx.env=. Elles peuvent être accédées de
+deux manières: par un mécanisme d'attribut =ctx.env.FOO= ou de
+dictionnaire =ctx.env["foo"]=. Les variables en question sont
+généralement des listes, qu'il convient de manipuler via la méthode
+=append=. 
+
+#+BEGIN_SRC Python  
 ctx.env.append_value('CFLAGS', ['-O2'])
-
-write decorator
-@conf
-def get_version ()
-ctx.get_version()
- 
-** Construction
-
-ctx (rule="${SRC} ${TGT}", source="", target="")
-
-input / output -> dependencies
-
-if install
-
-
-
-
-
-
-#+BEGIN_SRC Python
-APPNAME
-VERSION
 #+END_SRC
 
+Les objets =Context= peuvent être davantage modifiés en utilisant le
+mécanisme de décorateur Python.
+
+#+BEGIN_SRC Python 
+from waflib.Configure import conf
+
+@conf
+def get_version (self)
+    return 1.1
+
+def configure (ctx):
+    v = ctx.get_version()
+#+END_SRC 
+
+#+BEGIN_VERSE
+Compléter le script avec ces instructions. 
+Remplacer le précendent appel à la routine =version= par la méthode interne à l'object =Context=
+#+END_VERSE
+
+** Construction
+
+Lors de la phase de construction, les fichiers sources sont compilés
+en fichiers objets en suivant des règles définies comme suit: 
+
+#+BEGIN_SRC Python 
+def build (ctx):
+   ctx (rule="touch ${TGT}", target="a.txt", color='BLUE')
+   ctx (rule="touch ${TGT}", target="b.txt", color='BLUE')
+   ctx (rule="cat ${SRC} > ${TGT}", source="a.txt b.txt", target="c.txt", color='PINK')
+#+END_SRC 
+
+Les dépendances entre les différentes tâches de construction sont
+déduites des entrées / sorties. Dans ce cas, =a.txt= et =b.txt=
+doivent être construit avant =c.txt=. =waf= parralélise
+automatiquement toutes les tâches qui peuvent l'être. Dans cet exemple
+=a.txt= et =b.txt= peuvent être construit simultanément. 
+
+Le nombre maximum de jobs exécutés en parallèle peut être réglé par
+l'option =waf -j4= par exemple pour 4 exécuteurs de tâches.
+
+#+BEGIN_VERSE
+Compléter le script avec ces instructions. 
+Exécuter la construction de manière séquentielle via la commande =waf step --files=a.txt=, puis parallèle avec =waf build=
+#+END_VERSE
+
+
+** Installation
+
+L'installation est un cas particulier de construction.  Les
+instructions spécifiques à l'installation des binaires sur le système
+sont écrites dans la routine =build= et peuvent être définies sous la
+condition 
+
+#+BEGIN_SRC Python 
+def build (ctx):
+   if ctx.cmd == 'install':
+      files = ctx.path.ant_glob("build/*.txt")
+      ctx.install_files('${PREFIX}/txt', files) 
+#+END_SRC 
+
+** Empaquetage
+
+La commande =waf dist= permet de construire automatiquement une
+archive du projet, nommée par défaut =noname-1.0.tar.bz=. 
+Pour modifier ce nom, il suffit d'ajouter en tête du script: 
+
+#+BEGIN_SRC Python
+APPNAME = "myapp"
+VERSION = "1.1"
+#+END_SRC
+
+#+BEGIN_VERSE
+Compléter le script avec ces instructions. 
+Exécuter la commande =waf dist= puis observer le contenu de l'archive. 
+#+END_VERSE
 
 
 * Exemple en C/C++
