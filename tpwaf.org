@@ -263,6 +263,13 @@ def build (ctx):
       ctx.install_files('${PREFIX}/txt', files) 
 #+END_SRC 
 
+#+BEGIN_VERSE
+Compléter le script avec ces instructions. 
+Exécuter la commande =waf install= . L'exécution doit retourner une erreur faute de droit suffisant sur le répertoire =prefix= par défaut =/usr/local=. 
+Reconfigurer le préfixe via la commande =waf configure --prefix= puis recommencer l'installation. 
+#+END_VERSE
+
+
 ** Empaquetage
 
 La commande =waf dist= permet de construire automatiquement une
@@ -290,13 +297,33 @@ use
 
 * Exemple en Fortran
 
-* Projets
+* Gestion des tâches et performances
 
-gestion des taches et performance 
-genbench
+=waf= fournit un script permettant de réaliser quelques mesures de
+performance, en comparaison avec d'autres outils de construction.
+
+Il s'agit du fichier =genbench.py= qui prend pour argument: 
++ un répertoire pour stocker les fichiers générés
++ un nombre de bibliothèques internes à construire
++ un nombre de classes =C++=  par bibliothèque
++ un nombre d'inclusion de fichier header interne par fichier source
++ un nombre d'inclusion de fichier header de bibliothèques externes par fichier source
+
+Le script génère autant de bibliothèques, classes que spécifié par les
+arguments dans le répertoire donné.  Ces fichiers sources sont
+accompagnés d'un =wscript= pour construire les objets correspondants. 
+
+#+BEGIN_VERSE
+Générer un projet de taille raisonnable  =genbench.py /tmp/build 25 50 5 5= 
+Le construire avec un puis 4 exécuteurs de tâches =waf configure build -p -j1=, =waf clean configure build -p -j4=
+Mesurer les temps d'exécution à l'aide de la commande =time=. 
+#+END_VERSE
 
 * Extensions
 
-** extension existante à décortiquer
-** extension simple à écrire avec chainage
+** Un exemple
+
+
+
+** Ecrire une extension
    
