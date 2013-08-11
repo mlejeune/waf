@@ -30,6 +30,8 @@ Ce TP a pour objectif de vous guider dans :
   et gestion des dépendances)
 + l'écriture d'extensions
 
+Il reprend un certain nombre d'exemples du manuel d'utilisateur de waf
+(the waf book http://docs.waf.googlecode.com/git/book_17/single.html). 
 
 * Concepts de base
 
@@ -80,7 +82,6 @@ Ouvrir le fichier =1/wscript= et ajouter ces lignes de code à la suite du heade
 Vérifier par la commande =waf configure= que vos modifications ont bien été intégrées.  
 #+END_VERSE
 
-
 ** L'environnement de construction
 
 Les fichiers de construction générés par =waf= sont enregistrés dans
@@ -99,7 +100,7 @@ tree
 #+END_SRC
 
 #+BEGIN_VERSE
-Exécuter ces commandes dans l'order pour afficher le contenu du répertoire =build=. 
+Exécuter ces commandes dans l'ordre pour afficher le contenu du répertoire =build=. 
 #+END_VERSE
 
 
@@ -141,7 +142,6 @@ more build/c4che/_cache.py
 Ajouter la définition d'une nouvelle variable d'environnement à la fonction =configure= de =1/wscript=. 
 Vérifier sa présence dans le fichier de cache. 
 #+END_VERSE
-
 
 ** Ajouter de nouvelles options
 
@@ -251,7 +251,6 @@ Compléter le script avec ces instructions.
 Exécuter la construction de manière séquentielle via la commande =waf step --files=a.txt=, puis parallèle avec =waf build=
 #+END_VERSE
 
-
 ** Installation
 
 L'installation est un cas particulier de construction.  Les
@@ -271,7 +270,6 @@ Compléter le script avec ces instructions.
 Exécuter la commande =waf install= . L'exécution doit retourner une erreur faute de droit suffisant sur le répertoire =prefix= par défaut =/usr/local=. 
 Reconfigurer le préfixe via la commande =waf configure --prefix= puis recommencer l'installation. 
 #+END_VERSE
-
 
 ** Empaquetage
 
@@ -302,9 +300,13 @@ use
 
 * Gestion des tâches et performances
 
-** Tâches
+** Groupes de tâches
 
-task generator
+Les tâches de construction sont contenues dans les objets =Task= et
+manipulées par: 
++ le context de =build= capable de générer des listes de tâches
++ l'exécuteur de tâches qui contrôle l'exécution.
+
 #+BEGIN_SRC Python
 top = '.'
 out = 'build'
@@ -313,15 +315,70 @@ def configure(conf):
         pass
 
 def build(bld):
-        bld( 1
-                rule   = 'cp ${SRC} ${TGT}', 2
-                source = 'wscript', 3
-                target = 'foobar.txt', 4
+        bld(    rule   = 'cp ${SRC} ${TGT}', 
+                source = 'wscript', 
+                target = 'foobar.txt', 
         )
-
 #+END_SRC
 
-Rules may be given as expression strings or as python function. The function is assigned to the task class created:
+#+BEGIN_VERSE
+Compléter le script avec ces instructions, et exécuter la construction de la cible. 
+L'appel à la routine =bld= retourne une liste de tâche d'un seul élement. 
+#+END_VERSE
+
+Comme nous l'avons vu précédemment, les tâches peuvent être exécuter
+en parallèle, grâce à l'option =-j=. Cette exécution parallèle
+concerne l'ensemble des tâches d'une même liste, correspondant à un
+=build group=. L'ordonnanceur attendra que toutes les tâches d'un même
+groupe soient exécutées avant de traiter le groupe suivant.
+
+#+BEGIN_SRC Python
+top = '.'
+out = 'build'
+
+def options (ctx):
+        ctx.load ("parallel_debug", "tooldir=".")
+
+def configure(ctx):
+        ctx.load ("parallel_debug", "tooldir=".")
+
+def build(bld):
+       #bld.add_group("group1")
+       #bld.add_group("group2")Rules may be given as expression strings or as python function. The function is assigned to the task class created:
+
+       #bld.set_group("group1")
+       for i in range(10):     
+            bld(    rule   = 'cp ${SRC} ${TGT}', 
+                    source = 'wscript', 
+                    target = 'foobar%d.txt'%i, 
+		    color  = "BLUE"
+               )
+       #bld.set_group("group2")
+       for i in range(10,20): 
+            bld(    rule   = 'cp ${SRC} ${TGT}', 
+                    source = 'wscript', 
+                    target = 'foobar%d.txt'%i, 
+		    color  = "PINK"
+               )
+#+END_SRC
+
+#+BEGIN_VERSE
+Compléter le script avec ces instructions, et exécuter la construction des cibles en parallèle.  Puis, décommenter les appels à =add_group=
+et =set_group= pour forcer une exécution en 2 séquences.  
+Visualiser le résultat pour ces deux cas, en utilisant les données fournies par l'outil de debug, enregistrées dans le fichier =pdebug.svg=
+#+END_VERSE
+
+** Génération de tâches
+
+Nous avons vu comment définir des règles de construction via les
+variables =${TGT}$= et =${SRC}$=.  Des règles plus complexes peuvent
+être définies par des fonctions Python, retournant =0=, =None= ou
+=False= en cas de succès. L'argument de ces fonctions est un objet
+=Task= offrant quelques facilités, en particulier la méthode
+=exec_command= dérivée du module Python =subprocess= qui est
+thread-safe. Il est intéressant d'utiliser une fonction Python lorsque
+plusieurs commandes doivent être exécutées pour une cible donnée. 
+
 #+BEGIN_SRC Python
 top = '.'
 out = 'build'
@@ -330,19 +387,26 @@ def configure(conf):
         pass
 
 def build(bld):
-        def run(task): 1
-                src = task.inputs[0].abspath() 2
-                tgt = task.outputs[0].abspath() 3
+        def run(task): 
+                src = task.inputs[0].abspath() 
+                tgt = task.outputs[0].abspath() 
                 cmd = 'cp %s %s' % (src, tgt)
                 print(cmd)
-                return task.exec_command(cmd) 4
+                return task.exec_command(cmd) 
 
         bld(
-                rule   = run, 5
+                rule   = run, 
                 source = 'wscript',
-                target = 'same.txt',
+                target = 'foobar.txt',
         )
 #+END_SRC
+
+#+BEGIN_VERSE
+Reprendre l'exemple précédant en utilisant la fonction =run= décrite ci-dessus. 
+#+END_VERSE
+
+Au plus niveau, il est également possible de dériver l'objet =Task= lui-même. 
+
 #+BEGIN_SRC Python
 from waflib.Task import Task
 class cp(Task): 
@@ -350,66 +414,162 @@ class cp(Task):
       return self.exec_command('cp %s %s' % (self.inputs[0].abspath(), 
                                              self.outputs[0].abspath() )    )
 
-
-def build(ctx):
-        t1 = cp(env=ctx.env) 
-        t1.set_inputs(ctx.path.find_resource('a.txt')) 
-        t1.set_outputs(ctx.path.find_or_declare('b.txt'))
-        ctx.add_to_group(t1) 
-	
-	t1.set_run_after(t2)
-
-
-from waflib.Task import TaskBase
-class task_test_a(TaskBase):
-    before = ['task_test_b']
-class task_test_b(TaskBase):
-    after  = ['task_test_a']
-
-from waflib.Task import TaskBase
-class task_test_a(TaskBase):
-    ext_in  = ['.h']
-class task_test_b(TaskBase):
-    ext_out = ['.h']
+def build(bld):
+        t1 = cp(env=bld.env) 
+        t1.set_inputs(bld.path.find_resource('wscript')) 
+        t1.set_outputs(bld.path.find_or_declare('foobar.txt'))
+        bld.add_to_group(t1) 
 
 #+END_SRC
+
+#+BEGIN_VERSE
+Reprendre l'exemple précédant en utilisant la classe =cp= décrite ci-dessus. 
+#+END_VERSE
+
+** Chaînage par extension
+
+Lorsqu'il est question d'industrialiser la construction d'objets, les
+règles deviennent implicites, et les tâches sont construites à l'aide de
+générateur de tâches (=TaskGen=). 
+
 #+BEGIN_SRC Python
+top = '.'
+out = 'build'
+
+def configure(conf):
+        pass
+
+def build(bld):
+        bld (source='foo.in bar.in')
+
+from waflib import TaskGen
+TaskGen.declare_chain (name = "a",rule = "cp ${SRC} ${TGT}", ext_in = ".in", ext_out = ".a", reentrant = True)
+TaskGen.declare_chain (name = "b",rule = "cp ${SRC} ${TGT}", ext_in = ".a", ext_out = ".b", reentrant = False)
+#+END_SRC
+
+#+BEGIN_VERSE
+Reprendre l'exemple ci-dessus chaînant la construction de plusieurs objets en deux étapes: =.in= -> =.a= -> =.b= 
+#+END_VERSE
+
+Lorsque plusieurs extensions sont générées par une tâche, la simple
+déclaration de chaînes devient insuffisante, et on recourt à la
+définition de =callback= d'extension. Il s'agit d'une fonction Python
+munie du décorateur associé à l'extension des fichiers sources.
+
+Les callbacks reçoivent deux arguments en entrée: 
++ un générateur de tâche =TaskGen=
++ un noeud =node=, qui représente les entrées / sorties de la tâche
+
+#+BEGIN_SRC Python
+@extension(".in")
+def my_callback (taskgen, node):
+    output_node = node.change_ext (".a")
+    taskgen.create_task ( cp, node, output_node)
+#+END_SRC
+
+#+BEGIN_VERSE
+Remplacer, dans l'exemple précédent, la déclaration de chaînes par un callback inspiré de l'exemple ci-dessus.
+#+END_VERSE
+
+** Dépendances 
+
+La gestion des dépendances se base sur 3 ingrédients, qui permettent
+de contrôler la (re)-construction des objets. Il s'agit: 
+
++ des dépendances explicites: càd le contenu des fichiers sources
++ des dépendances implicites: càd le contenu de fichiers auxiliaires utilisés lors de la compilation. 
++ des valeurs: càd les options de configuration, flags de compilation, etc
+
+Ces ingrédients sont utilisés pour définir une signature unique pour
+chaque tâche, qui est associée aux objets générés par elle.  Si la
+signature change, la tâche est ré-exécutée, et les nouveaux objets
+produits sont associés à la nouvelle signature.
+ 
+Pour forcer une dépendance à un fichier qui n'est pas explicitement
+défini en tant qu'input, on utilise la méthode
+=add_manual_dependency=.
+
+
+#+BEGIN_SRC Python
+top = '.'
+out = 'build'
+
+def configure(conf):
+        pass
+
+def build(bld):
+        bld( rule   = 'cp ${SRC} ${TGT}', 
+             source = 'wscript', 
+             target = 'foobar.txt', 
+           )
+        bld.add_manual_dependency ( 
+            bld.path.find_node ('testfile')
+                                  )
+#+END_SRC
+
+#+BEGIN_VERSE
+Construire la cible telle que définie ci-dessus.  Modifier le fichier auxiliaire =testfile=, et vérifier que la cible est bien reconstruite. 
+#+END_VERSE
+
+Lorsque les dépendances ne sont pas connues d'avance (par exemple, issues
+d'une tâche créée dynamiquement), il est possible de chercher des
+dépendances implicites à la volée, en utilisant la méthode =scan= des
+objets =Task=.
+  
+#+BEGIN_SRC Python
+top = '.'
+out = 'build'
+
+def configure(conf):
+        pass
+
 import time
 from waflib.Task import Task
-class copy(Task):
+class cp(Task): 
+   def run(self): 
+      return self.exec_command('cp %s %s' % (self.inputs[0].abspath(), 
+                                             self.outputs[0].abspath() ) 
 
-    def run(self):
-        return self.exec_command('cp %s %s' % (self.inputs[0].abspath(), self.outputs[0].abspath()))
+   def scan(self):
+      node = self.inputs[0].parent.find_resource('testfile')
+      return ([node], time.time()) (ref:3)
 
-    def scan(self): 1
-        print('→ calling the scanner method')
-        node = self.inputs[0].parent.find_resource('wscript')
-        return ([node], time.time()) 2
+   def runnable_status (self):  (ref:4)
+      ret = super (cp, self).runnable_status()
+      bld = self.generator.bld
+      print ('nodes: %r' % bld.node_deps[self.uid()])
+      print ('custom data: %r' % bld.raw_deps[self.uid()])
 
-    def runnable_status(self):
-        ret = super(copy, self).runnable_status() 3
-        bld = self.generator.bld 4
-        print('nodes:       %r' % bld.node_deps[self.uid()]) 5
-        print('custom data: %r' % bld.raw_deps[self.uid()]) 6
-        return ret
+def build(bld):
+        t1 = cp(env=bld.env) 
+        t1.set_inputs(bld.path.find_resource('wscript')) 
+        t1.set_outputs(bld.path.find_or_declare('foobar.txt'))
+        bld.add_to_group(t1) 
 
-def configure(ctx):
-    pass
-
-def build(ctx):
-    tsk = copy(env=ctx.env) 7
-    tsk.set_inputs(ctx.path.find_resource('a.in'))
-    tsk.set_outputs(ctx.path.find_or_declare('b.out'))
-    ctx.add_to_group(tsk)
 #+END_SRC
 
-1       The scanner method is always called on a clean build
-2	The scanner method is not called when nothing has changed, although the data returned is retrieved
-3	When a dependency changes, the scanner method is executed once again (the custom data has changed) 
+[[(3)]] La méthode =scan= doit retouner un =set= composé d'une liste de
+dépendance et d'une valeur personnalisée associée 
+
+[[(4)]] Ces deux éléments sont accessibles via les attributs =node_deps=
+et =raw_deps= du contexte =bld=, affichés dans cet exemple à l'appel
+de =runnable_status=. 
+
+#+BEGIN_VERSE
+Modifier le script précédent afin de gérer la dépendance implicite à =testfile= via la méthode =scan=. 
+Reproduire le test précédant vérifiant que la dépendance est bien prise en compte. 
+#+END_VERSE
+
+Enfin, les dépendances aux valeurs des options de configuration sont
+gérées par l'attribut =vars= tel qu'illustré ci-dessous: 
+
 #+BEGIN_SRC Python
+def options (ctx):
+        ctx.add_option('--flags', default='-f', dest='copyflags', type='string')
+
 def configure(ctx):
         ctx.env.COPY      = '/bin/cp'
-        ctx.env.COPYFLAGS = ['-f']
+        ctx.env.COPYFLAGS = ctx.options.copyflags
 
 def build(ctx):
         from waflib.Task import Task
@@ -419,9 +579,14 @@ def build(ctx):
 
         tsk = copy(env=ctx.env)
         tsk.set_inputs(ctx.path.find_resource('wscript'))
-        tsk.set_outputs(ctx.path.find_or_declare('b.out'))
+        tsk.set_outputs(ctx.path.find_or_declare('foobar.txt'))
         ctx.add_to_group(tsk)
 #+END_SRC
+
+#+BEGIN_VERSE
+Reprendre l'exemple ci-dessus, et vérifier que la dépendance est bien prise en compte pour différents flags (se référer au manuel de =cp= pour obtenir une liste des différents flags autorisés).
+#+END_VERSE
+
 
 ** Mesure des performances
 
@@ -451,7 +616,13 @@ Mesurer les temps d'exécution à l'aide de la commande =time=.
 
 ** Un exemple
 
+A ce niveau du TP, nous avons tous les concepts utilisés généralement
+dans l'écriture d'extension.  Un exemple est montré ici à titre
+illustratif.
 
+#+BEGIN_SRC Python
+#+END_SRC
 
 ** Ecrire une extension
    
+
