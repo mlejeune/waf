@@ -78,7 +78,7 @@ def configure(ctx):
 #+END_SRC
     
 #+BEGIN_VERSE
-Ouvrir le fichier =1/wscript= et ajouter ces lignes de code à la suite du header. 
+Ouvrir le fichier =concepts_base/wscript= et ajouter ces lignes de code à la suite du header. 
 Vérifier par la commande =waf configure= que vos modifications ont bien été intégrées.  
 #+END_VERSE
 
@@ -120,8 +120,8 @@ def configure(ctx):
 #+END_SRC
 
 #+BEGIN_VERSE
-Observer le contenu du fichier =1/src/wscript=
-Modifier la fonction =configure= de =1/wscript= pour exécuter ce nouveau script. 
+Observer le contenu du fichier =concepts_base/src/wscript=
+Modifier la fonction =configure= de =concepts_base/wscript= pour exécuter ce nouveau script. 
 #+END_VERSE
 
 ** Persistence des données
@@ -139,7 +139,7 @@ more build/c4che/_cache.py
 #+END_SRC
 
 #+BEGIN_VERSE
-Ajouter la définition d'une nouvelle variable d'environnement à la fonction =configure= de =1/wscript=. 
+Ajouter la définition d'une nouvelle variable d'environnement à la fonction =configure= de =concepts_base/wscript=. 
 Vérifier sa présence dans le fichier de cache. 
 #+END_VERSE
 
@@ -162,7 +162,7 @@ def build(bld):
 #+END_SRC
 
 #+BEGIN_VERSE
-Ajouter la définition d'une fonction =options= à =1/wscript=. 
+Ajouter la définition d'une fonction =options= à =concepts_base/wscript=. 
 Exécuter la configuration puis la construction afin de vérifier la bonne propagation de votre option. 
 #+END_VERSE
 
@@ -290,13 +290,26 @@ Exécuter la commande =waf dist= puis observer le contenu de l'archive.
 
 * Exemple en C/C++
 
-static
-dynamic
-use
+#+BEGIN_VERSE
+Reportez-vous à l'exemple fourni par =waf= dans =waf-1.6.11/demos/c++= \\
+Réaliser la construction des différentes cibles. \\
+Identifier les lignes du =wscript= correspondant à la construction d'une librairie statique, dynamique et d'un binaire. 
+#+END_VERSE
 
 * Exemple en Python
 
+#+BEGIN_VERSE
+Reportez-vous à l'exemple fourni par =waf= dans =waf-1.6.11/demos/python= \\
+Réaliser la configuration et la construction des différentes cibles. \\
+Identifier les lignes correspondant à la construction d'extension en langage C (simple fonction et module).  
+#+END_VERSE
+
 * Exemple en Fortran
+
+#+BEGIN_VERSE
+Reportez-vous à l'exemple fourni par =waf= dans =waf-1.6.11/demos/fortran=. \\
+Les outils sont sensiblement les mêmes que ceux fournis dans l'exemple =C/C++=
+#+END_VERSE
 
 * Gestion des tâches et performances
 
@@ -593,7 +606,7 @@ Reprendre l'exemple ci-dessus, et vérifier que la dépendance est bien prise en
 =waf= fournit un script permettant de réaliser quelques mesures de
 performance, en comparaison avec d'autres outils de construction.
 
-Il s'agit du fichier =genbench.py= qui prend pour argument: 
+Il s'agit du fichier =perf/genbench.py= qui prend pour argument: 
 + un répertoire pour stocker les fichiers générés
 + un nombre de bibliothèques internes à construire
 + un nombre de classes =C++=  par bibliothèque
@@ -618,10 +631,50 @@ Mesurer les temps d'exécution à l'aide de la commande =time=.
 
 A ce niveau du TP, nous avons tous les concepts utilisés généralement
 dans l'écriture d'extension.  Un exemple est montré ici à titre
-illustratif.
+illustratif, extrait du =wafbook=.
+
+L'objectif est de construire les fichiers sources d'un projet dans un
+langage arbitraire à partir d'une description abstraite: foo.idl ->
+foo.c + foo.h
+
+Puis dans un second temps, de construire le programme à partir de ces
+sources.
 
 #+BEGIN_SRC Python
+top = '.'
+out = 'build'
+
+def configure(conf):
+    conf.load('g++')
+
+def build(bld):
+    bld.program(
+        source = 'foo.idl main.cpp',
+        target = 'myapp', 
+	includes = ["./"]
+        )
+
+from waflib.Task import Task
+from waflib.TaskGen import extension
+
+class idl(Task):
+    run_str = 'cp ${SRC} ${TGT[0].abspath()} && touch ${TGT[1].abspath()}' 
+    color   = 'BLUE'
+    ext_out = ['.h'] 
+
+@extension('.idl')
+def process_idl(self, node):
+    cpp_node = node.change_ext('.cpp')
+    hpp_node = node.change_ext('.h')
+    self.create_task('idl', node, [cpp_node, hpp_node]) 
+    self.source.append(cpp_node) 
 #+END_SRC
+
+#+BEGIN_VERSE
+A partir du sous répertoire =extension=, exécuter la commande =./waf distclean configure build -v=. \\
+Vérifier que la séquence de construction correspond bien à l'énoncé. 
+#+END_VERSE
+
 
 ** Ecrire une extension
    

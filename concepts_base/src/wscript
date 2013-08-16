@@ -1,0 +1,2 @@
+def configure (ctx):
+    print 'now running in ./src'

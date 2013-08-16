@@ -1,0 +1,9 @@
+top = "."
+out = 'build'
+
+def configure(ctx):
+    ctx.check_waf_version(mini='1.6.11')
+
+
+def build (ctx):
+    pass

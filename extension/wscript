@@ -1,0 +1,27 @@
+top = "."
+out = 'build'
+
+def configure(conf):
+    conf.load('g++')
+
+def build(bld):
+    bld.program(
+        source = 'foo.idl main.cpp',
+        target = 'myapp', 
+	includes = ["./"]
+        )
+
+from waflib.Task import Task
+from waflib.TaskGen import extension
+
+class idl(Task):
+    run_str = 'cp ${SRC} ${TGT[0].abspath()} && touch ${TGT[1].abspath()}' 
+    color   = 'BLUE'
+    ext_out = ['.h'] 
+
+@extension('.idl')
+def process_idl(self, node):
+    cpp_node = node.change_ext('.cpp')
+    hpp_node = node.change_ext('.h')
+    self.create_task('idl', node, [hpp_node, cpp_node]) 
+    self.source.append(cpp_node) 
